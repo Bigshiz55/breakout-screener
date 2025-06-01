@@ -1,53 +1,54 @@
+import requests
 import os
 import time
-import requests
 import yfinance as yf
-import pandas as pd
-import ta
+from ta.trend import MACD
 
-# Load credentials from environment variables
-USER_KEY = os.getenv("PUSHOVER_USER_KEY")
-APP_TOKEN = os.getenv("PUSHOVER_APP_TOKEN")
+def send_pushover_notification(message):
+    user_key = os.getenv("PUSHOVER_USER_KEY")
+    app_token = os.getenv("PUSHOVER_APP_TOKEN")
 
-def send_notification(message):
-    if not USER_KEY or not APP_TOKEN:
-        print("Missing credentials")
+    if not user_key or not app_token:
+        print("Missing Pushover credentials")
         return
-    data = {"token": APP_TOKEN, "user": USER_KEY, "message": message}
-    r = requests.post("https://api.pushover.net/1/messages.json", data=data)
-    print("✅ Notification sent!" if r.status_code == 200 else f"Error: {r.text}")
 
-# Core breakout scan
+    data = {
+        "token": app_token,
+        "user": user_key,
+        "message": message,
+    }
+
+    response = requests.post("https://api.pushover.net/1/messages.json", data=data)
+    if response.status_code != 200:
+        print(f"Error sending notification: {response.text}")
+    else:
+        print("✅ Notification sent!")
+
 def check_breakouts(tickers):
+    print("📈 Screener is running...")
+    df = yf.download(tickers, period="1d", interval="1m", group_by='ticker', threads=True)
+
     for ticker in tickers:
-        df = yf.download(ticker, period="2d", interval="1m")
-        if df.empty or len(df) < 35:
-            continue
+        try:
+            data = df[ticker] if isinstance(df.columns, pd.MultiIndex) else df
+            close = data['Close'].dropna()
+            if close.empty:
+                continue
 
-        df['volume_sma20'] = df['Volume'].rolling(20).mean()
-        macd = ta.trend.MACD(df['Close'])
-      df['macd_diff'] = macd.macd_diff().squeeze()
-        df['vwap'] = ta.volume.volume_weighted_average_price(df['High'], df['Low'], df['Close'], df['Volume'])
+            macd = MACD(close=close)
+            data['macd_diff'] = macd.macd_diff().squeeze()
+            last_value = data['macd_diff'].iloc[-1]
 
-        latest = df.iloc[-1]
-        prev = df.iloc[-2]
+            if last_value > 0:
+                price = close.iloc[-1]
+                send_pushover_notification(f"{ticker} breakout! Price: ${price:.2f}")
 
-        conditions = [
-            latest['Close'] > latest['vwap'],                         # VWAP Reclaim
-            latest['macd_diff'] > 0 and prev['macd_diff'] < 0,       # MACD Crossover
-            latest['Volume'] > 1.5 * latest['volume_sma20'],         # Volume Spike
-        ]
+        except Exception as e:
+            print(f"Error with {ticker}: {e}")
 
-        if all(conditions):
-            send_notification(f"{ticker} breakout! Price: ${latest['Close']:.2f}")
+TICKERS_TO_WATCH = ["QBTS", "FAAS", "BBAI"]
+INTERVAL_SECONDS = 60
 
-# Replace with your own watchlist
-tickers_to_watch = [
-    "FAAS", "QBTS", "NVNI", "XAGE", "ABP", "BTOG", "BNRG", "ATXG", "TAOP",
-    # add more tickers here
-]
-
-print("📈 Screener is running...")
 while True:
-    check_breakouts(tickers_to_watch)
-    time.sleep(60)
+    check_breakouts(TICKERS_TO_WATCH)
+    time.sleep(INTERVAL_SECONDS)
