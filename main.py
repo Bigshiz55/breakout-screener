@@ -26,7 +26,7 @@ def check_breakouts(tickers):
 
         df['volume_sma20'] = df['Volume'].rolling(20).mean()
         macd = ta.trend.MACD(df['Close'])
-        df['macd_diff'] = macd.macd_diff()
+      df['macd_diff'] = macd.macd_diff().squeeze()
         df['vwap'] = ta.volume.volume_weighted_average_price(df['High'], df['Low'], df['Close'], df['Volume'])
 
         latest = df.iloc[-1]
