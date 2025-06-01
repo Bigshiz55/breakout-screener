@@ -1,15 +1,11 @@
 import requests
 import os
-
-import requests
-import os
 import time
 import yfinance as yf
 
 def send_pushover_notification(message):
     user_key = os.getenv("PUSHOVER_USER_KEY")
     app_token = os.getenv("PUSHOVER_APP_TOKEN")
-
     if not user_key or not app_token:
         print("Missing Pushover credentials")
         return
@@ -22,9 +18,34 @@ def send_pushover_notification(message):
 
     response = requests.post("https://api.pushover.net/1/messages.json", data=data)
     if response.status_code != 200:
-        print(f"Error sending notification: {response.text}")
+        print(f"❌ Error sending notification: {response.text}")
     else:
         print("✅ Notification sent!")
+
+print("🚀 Breakout screener is scanning multiple stocks...")
+
+TICKERS = ["FAAS", "ABP", "BTOG", "XAGE", "SGD", "EKSO", "BURU", "ATXG", "IMNN", "QBTS", "NVNI"]
+THRESHOLD_PRICE = 3.50
+INTERVAL_SECONDS = 60
+
+def check_prices():
+    for ticker in TICKERS:
+        try:
+            stock = yf.Ticker(ticker)
+            data = stock.history(period="1d", interval="1m")
+            if data.empty:
+                print(f"{ticker}: No data")
+                continue
+            current_price = data["Close"].iloc[-1]
+            print(f"{ticker} price: {current_price}")
+            if current_price > THRESHOLD_PRICE:
+                send_pushover_notification(f"{ticker} breakout! Price: ${current_price:.2f}")
+        except Exception as e:
+            print(f"{ticker} error: {e}")
+
+while True:
+    check_prices()
+    time.sleep(INTERVAL_SECONDS)
 
 # === YOUR BREAKOUT CONDITIONS ===
 # Set your target stock and breakout parameters
