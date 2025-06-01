@@ -1,6 +1,7 @@
 import requests
 import os
 print("Breakout screener is running")
+send_pushover_notification("Breakout Screener is now LIVE!")
 def send_pushover_notification(message):
     import requests, os
 
