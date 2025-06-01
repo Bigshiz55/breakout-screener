@@ -1,4 +1,4 @@
-alpaca-trade-api
-pandas
-requests
 yfinance
+pandas
+ta
+requests
