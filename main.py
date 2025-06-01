@@ -1,96 +1,53 @@
-import requests
-import os
+import import os
 import time
+import requests
 import yfinance as yf
+import pandas as pd
+import ta
 
-def send_pushover_notification(message):
-    user_key = os.getenv("PUSHOVER_USER_KEY")
-    app_token = os.getenv("PUSHOVER_APP_TOKEN")
-    if not user_key or not app_token:
-        print("Missing Pushover credentials")
+# Load credentials from environment variables
+USER_KEY = os.getenv("PUSHOVER_USER_KEY")
+APP_TOKEN = os.getenv("PUSHOVER_APP_TOKEN")
+
+def send_notification(message):
+    if not USER_KEY or not APP_TOKEN:
+        print("Missing credentials")
         return
+    data = {"token": APP_TOKEN, "user": USER_KEY, "message": message}
+    r = requests.post("https://api.pushover.net/1/messages.json", data=data)
+    print("✅ Notification sent!" if r.status_code == 200 else f"Error: {r.text}")
 
-    data = {
-        "token": app_token,
-        "user": user_key,
-        "message": message,
-    }
+# Core breakout scan
+def check_breakouts(tickers):
+    for ticker in tickers:
+        df = yf.download(ticker, period="2d", interval="1m")
+        if df.empty or len(df) < 35:
+            continue
 
-    response = requests.post("https://api.pushover.net/1/messages.json", data=data)
-    if response.status_code != 200:
-        print(f"❌ Error sending notification: {response.text}")
-    else:
-        print("✅ Notification sent!")
+        df['volume_sma20'] = df['Volume'].rolling(20).mean()
+        macd = ta.trend.MACD(df['Close'])
+        df['macd_diff'] = macd.macd_diff()
+        df['vwap'] = ta.volume.volume_weighted_average_price(df['High'], df['Low'], df['Close'], df['Volume'])
 
-print("🚀 Breakout screener is scanning multiple stocks...")
+        latest = df.iloc[-1]
+        prev = df.iloc[-2]
 
-TICKERS = ["FAAS", "ABP", "BTOG", "XAGE", "SGD", "EKSO", "BURU", "ATXG", "IMNN", "QBTS", "NVNI"]
-THRESHOLD_PRICE = 3.50
-INTERVAL_SECONDS = 60
+        conditions = [
+            latest['Close'] > latest['vwap'],                         # VWAP Reclaim
+            latest['macd_diff'] > 0 and prev['macd_diff'] < 0,       # MACD Crossover
+            latest['Volume'] > 1.5 * latest['volume_sma20'],         # Volume Spike
+        ]
 
-def check_prices():
-    for ticker in TICKERS:
-        try:
-            stock = yf.Ticker(ticker)
-            data = stock.history(period="1d", interval="1m")
-            if data.empty:
-                print(f"{ticker}: No data")
-                continue
-            current_price = data["Close"].iloc[-1]
-            print(f"{ticker} price: {current_price}")
-            if current_price > THRESHOLD_PRICE:
-                send_pushover_notification(f"{ticker} breakout! Price: ${current_price:.2f}")
-        except Exception as e:
-            print(f"{ticker} error: {e}")
+        if all(conditions):
+            send_notification(f"{ticker} breakout! Price: ${latest['Close']:.2f}")
 
+# Replace with your own watchlist
+tickers_to_watch = [
+    "FAAS", "QBTS", "NVNI", "XAGE", "ABP", "BTOG", "BNRG", "ATXG", "TAOP",
+    # add more tickers here
+]
+
+print("📈 Screener is running...")
 while True:
-    check_prices()
-    time.sleep(INTERVAL_SECONDS)
-
-# === YOUR BREAKOUT CONDITIONS ===
-# Set your target stock and breakout parameters
-TICKER = "FAAS"
-THRESHOLD_PRICE = 3.50  # Alert if price crosses this
-INTERVAL_SECONDS = 60   # Check every 60 seconds
-
-def check_price():
-    stock = yf.Ticker(TICKER)
-    data = stock.history(period="1d", interval="1m")
-    if data.empty:
-        print("No data available")
-        return
-
-    current_price = data["Close"].iloc[-1]
-    print(f"{TICKER} current price: {current_price}")
-
-    if current_price > THRESHOLD_PRICE:
-        send_pushover_notification(f"{TICKER} is breaking out! Price: ${current_price:.2f}")
-
-print("📈 Breakout screener is running...")
-
-while True:
-    check_price()
-    time.sleep(INTERVAL_SECONDS)
-
-def send_pushover_notification(message):
-    user_key = os.getenv("PUSHOVER_USER_KEY")
-    app_token = os.getenv("PUSHOVER_APP_TOKEN")
-
-    if not user_key or not app_token:
-        print("Missing Pushover credentials")
-        return
-
-    data = {
-        "token": app_token,
-        "user": user_key,
-        "message": message,
-    }
-
-    response = requests.post("https://api.pushover.net/1/messages.json", data=data)
-    if response.status_code != 200:
-        print(f"Error sending notification: {response.text}")
-    else:
-        print("Notification sent!")
-
-# Trigger a test notification
-send_pushover_notification("Breakout Screener is now LIVE!")
+    check_breakouts(tickers_to_watch)
+    time.sleep(60)
