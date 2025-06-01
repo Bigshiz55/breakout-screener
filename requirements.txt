@@ -1,3 +1,4 @@
 alpaca-trade-api
 pandas
 requests
+yfinance
