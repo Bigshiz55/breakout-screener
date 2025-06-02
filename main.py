@@ -9,7 +9,7 @@ import time
 PUSHOVER_USER_KEY = "your_user_key"
 PUSHOVER_API_TOKEN = "your_app_token"
 
-bad_symbols = set()  # Track failed tickers
+bad_symbols = set()
 
 def send_pushover_notification(title, message):
     try:
@@ -51,15 +51,20 @@ def check_breakouts(ticker_list, label=""):
 
             print(f"{label}{symbol}: MACD={macd_cross}, VWAP={vwap_reclaim}, VOL Spike={volume_spike}")
 
-            if macd_cross and vwap_reclaim and volume_spike:
-                message = f"{symbol} breakout!\nMACD: ✅\nVWAP: ✅\nVolume Spike: ✅"
+            if macd_cross and vwap_reclaim:
+                message = (
+                    f"{symbol} breakout setup:\n"
+                    f"MACD: ✅\n"
+                    f"VWAP Reclaim: ✅\n"
+                    f"Volume Spike: {'✅' if volume_spike else '❌'}"
+                )
                 send_pushover_notification(f"{label}Breakout: {symbol}", message)
 
         except Exception as e:
             print(f"{label}{symbol} error: {e}")
             bad_symbols.add(symbol)
 
-# === CLEANED NASDAQ TICKERS (replace/add more as needed) ===
+# === CLEAN NASDAQ LIST ===
 tickers = [
     "AAPL", "MSFT", "GOOG", "AMZN", "NVDA", "META", "TSLA", "PEP", "ADBE", "COST", "NFLX", "AMD", "QCOM",
     "TXN", "INTU", "ISRG", "AMGN", "VRTX", "MU", "CDNS", "FTNT", "CRWD", "PANW", "ROKU", "PLTR", "COIN", "SOFI",
