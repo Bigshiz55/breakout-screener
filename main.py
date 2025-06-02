@@ -3359,6 +3359,7 @@ def check_additional_conditions(ticker, data):
 
 def check_breakouts(tickers):
     for ticker in tickers:
+        print(f"🔍 Scanning: {ticker}")
         data = fetch_data(ticker)
         if data is None or len(data) < 35:
             continue
