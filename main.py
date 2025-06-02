@@ -71,4 +71,4 @@ print("📈 Breakout screener is LIVE")
 while True:
     check_breakouts(tickers_to_watch)
     time.sleep(60)
-send_pushover_notification("🚨 Test Alert: Pushover is working!")
+send_pushover_notification("✅ Test: Pushover is working!")
