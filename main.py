@@ -1,6 +1,4 @@
 import yfinance as yf
-import time
-from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
@@ -24,7 +22,6 @@ def send_pushover_notification(title, message):
     except Exception as e:
         print(f"Pushover error: {e}")
 
-# ==== Auto-Fetch or Fallback Reverse Split Tickers ====
 def get_recent_reverse_splits():
     url = "https://www.nasdaq.com/market-activity/stocks/splits"
     headers = {'User-Agent': 'Mozilla/5.0'}
@@ -37,4 +34,16 @@ def get_recent_reverse_splits():
             rows = table.find_all("tr")[1:]
             for row in rows:
                 cols = row.find_all("td")
-                if len(
+                if len(cols) >= 3:
+                    ratio = cols[2].text.strip()
+                    if ":" in ratio:
+                        a, b = ratio.split(":")
+                        if a.isdigit() and b.isdigit() and int(a) > int(b):
+                            ticker = cols[0].text.strip().upper()
+                            tickers.append(ticker)
+        if not tickers:
+            raise Exception("Empty scrape fallback")
+        print(f"Auto-loaded reverse split tickers: {tickers}")
+        return tickers
+    except Exception as e:
+        print(f"⚠️ Error fetching reverse splits, using fallback list. Reason: {e}")
