@@ -67,5 +67,46 @@ tickers = [
     "ORLY","PAYX"
 ]
 
+# ==== Recent Reverse Split Tickers ====
+reverse_split_tickers = ["APDN", "BNRG", "TAOP", "EKSO"]  # Update daily or automate
+
+# ==== Screener Loop ====
+def check_breakouts(ticker_list, label=""):
+    for ticker in ticker_list:
+        check_breakout_conditions(ticker, label=label)
+
+def check_breakout_conditions(ticker, label=""):
+    try:
+        data = yf.download(ticker, interval="1m", period="1d", progress=False)
+
+        if len(data) < 30:
+            return
+
+        # Calculate indicators
+        exp12 = data['Close'].ewm(span=12, adjust=False).mean()
+        exp26 = data['Close'].ewm(span=26, adjust=False).mean()
+        macd = exp12 - exp26
+        signal = macd.ewm(span=9, adjust=False).mean()
+        macd_cross = macd.iloc[-1] > signal.iloc[-1]
+
+        vwap = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()
+        vwap_reclaim = data['Close'].iloc[-1] > vwap.iloc[-1]
+
+        avg_volume = data['Volume'].iloc[-30:-5].mean()
+        recent_volume = data['Volume'].iloc[-1]
+        volume_spike = recent_volume > avg_volume * 2
+
+        print(f"{label}{ticker}: MACD Cross={macd_cross}, VWAP={vwap_reclaim}, Volume Spike={volume_spike}")
+
+        if macd_cross and vwap_reclaim and volume_spike:
+            send_pushover_notification(
+                f"🚨 Breakout: {label}{ticker}",
+                f"{label}{ticker} triggered breakout conditions at ${data['Close'].iloc[-1]:.2f}"
+            )
+
+    except Exception as e:
+        print(f"Error checking {label}{ticker}: {e}")
+
 # ==== Run Screener ====
 check_breakouts(tickers)
+check_breakouts(reverse_split_tickers, label="RS: ")
