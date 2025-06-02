@@ -136,6 +136,7 @@ def check_breakout_conditions(ticker, label=""):
 
     except Exception as e:
         print(f"Error checking {label}{ticker}: {e}")
+send_pushover_notification("🚨 TEST ALERT", "This is a manual Pushover test from the screener.")
 
 # ==== Run Screener ====
 check_breakouts(tickers)
