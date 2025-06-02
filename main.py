@@ -37,13 +37,14 @@ def check_breakouts(tickers):
         vwap = (data["Close"] * data["Volume"]).cumsum() / data["Volume"].cumsum()
         macd, signal = calculate_macd(data)
 
-        # Strict bullish logic: MACD crossover just occurred & VWAP reclaimed
-        if (
-            macd.iloc[-2] < signal.iloc[-2] and
-            macd.iloc[-1] > signal.iloc[-1] and
-            data["Close"].iloc[-1] > vwap.iloc[-1]
-        ):
-            send_pushover_notification(f"📈 Breakout Alert: {ticker} — MACD Bullish Crossover & VWAP Reclaimed")
+        try:
+            macd_crossed = macd.iloc[-2].item() < signal.iloc[-2].item() and macd.iloc[-1].item() > signal.iloc[-1].item()
+            vwap_reclaim = data["Close"].iloc[-1].item() > vwap.iloc[-1].item()
+
+            if macd_crossed and vwap_reclaim:
+                send_pushover_notification(f"📈 Breakout Alert: {ticker} — MACD Bullish Crossover & VWAP Reclaimed")
+        except Exception as e:
+            print(f"Error checking breakout for {ticker}: {e}")
 
 def send_heartbeat():
     now = datetime.datetime.now().strftime("%H:%M:%S")
@@ -62,4 +63,4 @@ if __name__ == "__main__":
     while True:
         check_breakouts(tickers)
         send_heartbeat()
-        time.sleep(900)  # every 15 minutes
+        time.sleep(900)
