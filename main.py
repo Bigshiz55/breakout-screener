@@ -3335,8 +3335,9 @@ TICKERS = [
     "CSCO",
     "PEP",
     "COST",
-    "AVGO"
+    "AVGO",
 ]
+
 
 def check_breakouts(tickers):
     for ticker in tickers:
@@ -3354,12 +3355,14 @@ def check_breakouts(tickers):
         price_above_vwap = latest["Close"] > vwap.iloc[-1]
         macd_cross = macd.iloc[-1] > signal.iloc[-1]
 
-        print(f"✅ {ticker}: Volume spike = {volume_spike}, VWAP reclaim = {price_above_vwap}, MACD cross = {macd_cross}")
+        print(f"✅ {ticker} | Vol Spike: {volume_spike}, VWAP: {price_above_vwap}, MACD: {macd_cross}")
 
-        send_pushover_notification(f"✅ DEBUG: {ticker} scanned. Volume: {latest['Volume']}, Close: {latest['Close']}")
+        score = sum([volume_spike, price_above_vwap, macd_cross])
+        if score >= 2:
+            send_pushover_notification(f"📈 Breakout: {ticker} meets {score}/3 breakout criteria.")
 
 def run_screener():
-    send_pushover_notification("🚨 Screener STARTED: Debug Mode Active")
+    send_pushover_notification("🚨 Screener STARTED: Real Alert Mode")
     while True:
         check_breakouts(TICKERS)
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
