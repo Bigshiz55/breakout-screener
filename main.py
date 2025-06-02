@@ -7,8 +7,16 @@ import requests
 PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
 PUSHOVER_API_TOKEN = "a1tg7ugcknh8tv7p3nrp881272yqzk"
 
-def send_pushover_notification(message):
-send_pushover_notification("🚨 TEST ALERT", "This is a manual Pushover test from the screener.")
+def send_pushover_notification(title, message):
+    url = "https://api.pushover.net/1/messages.json"
+    data = {
+        "token": PUSHOVER_API_TOKEN,
+        "user": PUSHOVER_USER_KEY,
+        "title": title,
+        "message": message
+    }
+    requests.post(url, data=data)
+
 
 
 # ==== Breakout Logic ====
