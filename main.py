@@ -67,8 +67,38 @@ tickers = [
     "ORLY","PAYX"
 ]
 
-# ==== Recent Reverse Split Tickers ====
-reverse_split_tickers = ["APDN", "BNRG", "TAOP", "EKSO"]  # Update daily or automate
+def get_recent_reverse_splits():
+    import requests
+    from bs4 import BeautifulSoup
+
+    url = "https://www.nasdaq.com/market-activity/stocks/splits"
+    headers = {'User-Agent': 'Mozilla/5.0'}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, "html.parser")
+        table = soup.find("table")
+
+        tickers = []
+        if table:
+            rows = table.find_all("tr")[1:]
+            for row in rows:
+                cols = row.find_all("td")
+                if len(cols) >= 3:
+                    ratio = cols[2].text.strip()
+                    if ":" in ratio:
+                        a, b = ratio.split(":")
+                        if a.isdigit() and b.isdigit() and int(a) > int(b):  # Reverse split
+                            ticker = cols[0].text.strip().upper()
+                            tickers.append(ticker)
+        return tickers
+    except Exception as e:
+        print(f"Error fetching reverse splits: {e}")
+        return []
+
+# ==== Auto-Fetched Reverse Split Tickers ====
+reverse_split_tickers = get_recent_reverse_splits()
+e
 
 # ==== Screener Loop ====
 def check_breakouts(ticker_list, label=""):
