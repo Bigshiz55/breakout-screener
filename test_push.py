@@ -1,21 +1,22 @@
-import os
 import requests
 
-def send_pushover_notification(message):
-    user_key = os.getenv("PUSHOVER_USER_KEY")
-    app_token = os.getenv("PUSHOVER_APP_TOKEN")
+PUSHOVER_USER_KEY = "your_user_key_here"
+PUSHOVER_API_TOKEN = "your_api_token_here"
 
-    if not user_key or not app_token:
-        print("Missing Pushover credentials")
-        return
-
+def send_pushover_notification(title, message):
+    print(f"Sending Pushover alert: {title} — {message}")
+    url = "https://api.pushover.net/1/messages.json"
     data = {
-        "token": app_token,
-        "user": user_key,
-        "message": message,
+        "token": PUSHOVER_API_TOKEN,
+        "user": PUSHOVER_USER_KEY,
+        "title": title,
+        "message": message
     }
+    try:
+        response = requests.post(url, data=data)
+        print(f"Pushover response code: {response.status_code}")
+        print(f"Pushover response text: {response.text}")
+    except Exception as e:
+        print(f"Pushover error: {e}")
 
-    response = requests.post("https://api.pushover.net/1/messages.json", data=data)
-    print(response.status_code, response.text)
-
-send_pushover_notification("✅ Direct test from test_push.py")
+send_pushover_notification("🚨
