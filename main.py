@@ -78,13 +78,21 @@ reverse_split_tickers = ["APDN", "BNRG", "TAOP", "EKSO"]
 
 # === START ===
 print("✅ Screener started...")
+send_test_push()
 
-send_test_push()  # Sends a test push when service starts
+last_checkin = 0
 
 while True:
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print(f"\n🔄 Scan running at {now}")
-    send_pushover_notification("✅ Screener Check-In", f"Heartbeat at {now}")
+    now = datetime.now()
+    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+
+    print(f"\n🔄 Scan running at {now_str}")
+    
+    # Only send check-in once every 15 minutes
+    if (now.minute % 15 == 0) and (now.minute != last_checkin):
+        send_pushover_notification("✅ Screener Check-In", f"Heartbeat at {now_str}")
+        last_checkin = now.minute
+
     check_breakouts(tickers)
     check_breakouts(reverse_split_tickers, label="RS: ")
     time.sleep(60)
