@@ -1,13 +1,16 @@
 import yfinance as yf
 import time
-import pandas as pd
+from datetime import datetime
 import requests
+from bs4 import BeautifulSoup
 
 # ==== Pushover Configuration ====
-PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
-PUSHOVER_API_TOKEN = "a1tg7ugcknh8tv7p3nrp881272yqzk"
+PUSHOVER_USER_KEY = "your_user_key_here"
+PUSHOVER_API_TOKEN = "your_api_token_here"
 
 def send_pushover_notification(title, message):
+    print(f"Sending Pushover alert: {title} — {message}")
+
     url = "https://api.pushover.net/1/messages.json"
     data = {
         "token": PUSHOVER_API_TOKEN,
@@ -15,62 +18,16 @@ def send_pushover_notification(title, message):
         "title": title,
         "message": message
     }
-    requests.post(url, data=data)
 
-
-
-# ==== Breakout Logic ====
-def meets_breakout_conditions(df):
     try:
-        macd = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
-        signal = macd.ewm(span=9).mean()
-        crossover = macd.iloc[-2] < signal.iloc[-2] and macd.iloc[-1] > signal.iloc[-1]
-        price_spike = df['Volume'].iloc[-1] > 2 * df['Volume'].rolling(window=10).mean().iloc[-1]
-        return crossover and price_spike
-    except:
-        return False
+        response = requests.post(url, data=data)
+        print(f"Pushover response code: {response.status_code}")
+        print(f"Pushover response text: {response.text}")
+    except Exception as e:
+        print(f"Pushover error: {e}")
 
-# ==== Screener ====
-def check_breakouts(tickers):
-    print("📡 Screener is scanning...")
-    df_all = yf.download(tickers, period="5d", interval="1d", group_by="ticker", threads=True)
-
-    for ticker in tickers:
-        try:
-            df = df_all[ticker]
-            df["macd_diff"] = (df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()) - \
-                              (df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()).ewm(span=9).mean()
-            
-            # Force one alert
-            if ticker == "QBTS":
-                price = df["Close"].iloc[-1]
-                message = f"🔥 TEST ALERT: {ticker} @ ${price:.2f}"
-                print(message)
-                send_pushover_notification(message)
-                continue
-
-            if meets_breakout_conditions(df):
-                price = df["Close"].iloc[-1]
-                message = f"🚀 {ticker} breakout @ ${price:.2f}"
-                print(message)
-                send_pushover_notification(message)
-
-        except Exception as e:
-            print(f"⚠️ Error scanning {ticker}: {e}")
-
-# ==== Full NASDAQ List (Top 50 for now) ====
-tickers = [
-    "AAPL","MSFT","GOOG","AMZN","NVDA","META","TSLA","AVGO","PEP","ADBE","COST","INTC",
-    "CMCSA","NFLX","AMD","QCOM","TXN","INTU","ISRG","AMGN","VRTX","BKNG","GILD","ADP",
-    "ADI","MU","REGN","MDLZ","LRCX","PANW","MCHP","CSGP","MAR","CRWD","KLAC","DXCM",
-    "PDD","CDNS","FTNT","EXC","SIRI","FAST","ROST","MRVL","EA","WBD","CTAS","MNST",
-    "ORLY","PAYX"
-]
-
+# ==== Auto-Fetch Reverse Splits from Nasdaq ====
 def get_recent_reverse_splits():
-    import requests
-    from bs4 import BeautifulSoup
-
     url = "https://www.nasdaq.com/market-activity/stocks/splits"
     headers = {'User-Agent': 'Mozilla/5.0'}
 
@@ -91,54 +48,14 @@ def get_recent_reverse_splits():
                         if a.isdigit() and b.isdigit() and int(a) > int(b):  # Reverse split
                             ticker = cols[0].text.strip().upper()
                             tickers.append(ticker)
+        print(f"Auto-loaded reverse split tickers: {tickers}")
         return tickers
     except Exception as e:
         print(f"Error fetching reverse splits: {e}")
         return []
 
-# ==== Auto-Fetched Reverse Split Tickers ====
-reverse_split_tickers = get_recent_reverse_splits()
-e
+# ==== Indicator Calculations ====
+def calculate_macd(data):
+    exp12 = data['Close'].ewm(span=12, adjust=False).mean()
+    exp26 = data['Close'].ewm(span=26, adjust=False).mean()
 
-# ==== Screener Loop ====
-def check_breakouts(ticker_list, label=""):
-    for ticker in ticker_list:
-        check_breakout_conditions(ticker, label=label)
-
-def check_breakout_conditions(ticker, label=""):
-    try:
-        data = yf.download(ticker, interval="1m", period="1d", progress=False)
-
-        if len(data) < 30:
-            return
-
-        # Calculate indicators
-        exp12 = data['Close'].ewm(span=12, adjust=False).mean()
-        exp26 = data['Close'].ewm(span=26, adjust=False).mean()
-        macd = exp12 - exp26
-        signal = macd.ewm(span=9, adjust=False).mean()
-        macd_cross = macd.iloc[-1] > signal.iloc[-1]
-
-        vwap = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()
-        vwap_reclaim = data['Close'].iloc[-1] > vwap.iloc[-1]
-
-        avg_volume = data['Volume'].iloc[-30:-5].mean()
-        recent_volume = data['Volume'].iloc[-1]
-        volume_spike = recent_volume > avg_volume * 2
-
-        print(f"{label}{ticker}: MACD Cross={macd_cross}, VWAP={vwap_reclaim}, Volume Spike={volume_spike}")
-
-        if macd_cross and vwap_reclaim and volume_spike:
-            send_pushover_notification(
-                f"🚨 Breakout: {label}{ticker}",
-                f"{label}{ticker} triggered breakout conditions at ${data['Close'].iloc[-1]:.2f}"
-            )
-
-    except Exception as e:
-        print(f"Error checking {label}{ticker}: {e}")
-send_pushover_notification("🚨 TEST ALERT", "This is a manual Pushover test from the screener.")
-
-# ==== Run Screener ====
-check_breakouts(tickers)
-check_breakouts(reverse_split_tickers, label="RS: ")
-send_pushover_notification("🚨 Test Alert", "This is a manual test from Render.")
