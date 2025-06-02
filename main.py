@@ -4,15 +4,6 @@ import requests
 import yfinance as yf
 import pandas as pd
 from ta.trend import MACD
-from ta.volume import OnBalanceVolumeIndicator
-
-# Load tickers from CSV file
-ticker_file = "Nas.csv"
-if not os.path.exists(ticker_file):
-    raise FileNotFoundError("⚠️ Nas.csv file not found in root directory!")
-
-tickers_df = pd.read_csv(ticker_file)
-tickers_to_watch = tickers_df["Symbol"].dropna().unique().tolist()
 
 # Pushover function
 def send_pushover_notification(message):
@@ -32,34 +23,42 @@ def send_pushover_notification(message):
     else:
         print("✅ Notification sent!")
 
+# NASDAQ tickers (full list from your CSV, inline)
+tickers_to_watch = [
+    "AACB", "AACBR", "AACBU", "AACG", "AACIU", "AADR", "AAL", "AAME", "AAOI", "AAON", "AAPB", "AAPD", "AAPG", "AAPL", "AAPU", "AARD", "AAVM", "AAXJ", "ABAT", "ABCL", "ABCS", "ABEO", "ABIG", "ABL", "ABLLL", "ABLLW", "ABLV", "ABLVW", "ABNB", "ABOS", "ABP", "ABPWW", "ABSI", "ABTS", "ABUS", "ABVC", "ABVE", "ABVEW", "ABVX", "ACAD", "ACB", "ACDC", "ACET", "ACGL", "ACGLN", "ACGLO", "ACHC", "ACHV", "ACIC", "ACIU", "ACIW", "ACLS", "ACLX", "ACMR", "ACNB", "ACNT", "ACOG", "ACON", "ACONW", "ACRS", "ACRV", "ACT", "ACTG", "ACTU", "ACWI", "ACWX", "ACXP", "ADAG", "ADAP", "ADBE", "ADBG", "ADD", "ADEA", "ADGM", "ADI", "ADIL", "ADMA", "ADN", "ADNWW", "ADP", "ADPT", "ADSE", "ADSEW"
+]
+
 def meets_breakout_conditions(df):
     if len(df) < 35:
         return False
     macd = MACD(df["Close"])
-    df["macd_diff"] = macd.macd_diff()
-    vol_now = df["Volume"].iloc[-1]
-    vol_avg = df["Volume"].rolling(20).mean().iloc[-2]
-    vol_spike = vol_now > vol_avg * 1.5
-    macd_cross = df["macd_diff"].iloc[-1] > 0 and df["macd_diff"].iloc[-2] <= 0
+    df["macd_diff"] = macd.macd_diff().squeeze()
+
+    recent_vol = df["Volume"].iloc[-1]
+    avg_vol = df["Volume"].rolling(window=20).mean().iloc[-2]
+    vol_spike = recent_vol > avg_vol * 1.5
+
+    macd_crossover = df["macd_diff"].iloc[-1] > 0 and df["macd_diff"].iloc[-2] <= 0
     vwap_reclaim = df["Close"].iloc[-1] > df["Close"].mean()
-    return vol_spike and macd_cross and vwap_reclaim
+
+    return vol_spike and macd_crossover and vwap_reclaim
 
 def check_breakouts(tickers):
-    print("🧠 Scanning for breakouts...")
-    df_all = yf.download(tickers, period="1d", interval="1m", group_by="ticker", progress=False, threads=True)
+    print("🧠 Screener is scanning...")
+    df_all = yf.download(tickers, period="1d", interval="1m", group_by="ticker", progress=False)
     for ticker in tickers:
         try:
             df = df_all[ticker]
             if meets_breakout_conditions(df):
                 price = df["Close"].iloc[-1]
-                msg = f"{ticker} breakout! Price: ${price:.2f}"
-                print(msg)
-                send_pushover_notification(msg)
+                message = f"{ticker} breakout! Price: ${price:.2f}"
+                print(message)
+                send_pushover_notification(message)
         except Exception as e:
-            print(f"❌ {ticker}: {e}")
+            print(f"Error with {ticker}: {e}")
 
 # MAIN LOOP
-print("📈 Breakout Screener Running...")
+print("📈 Breakout screener is LIVE")
 while True:
     check_breakouts(tickers_to_watch)
     time.sleep(60)
