@@ -3338,7 +3338,7 @@ def check_breakouts(tickers):
         if data is None or len(data) < 35:
             continue
 check_additional_conditions(ticker, data)
-        vwap = (data["Close"] * data["Volume"]).cumsum() / data["Volume"].cumsum()
+        vwap = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()
         macd, signal = calculate_macd(data)
 
         try:
