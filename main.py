@@ -92,6 +92,8 @@ while True:
     if (now.minute % 15 == 0) and (now.minute != last_checkin):
         send_pushover_notification("✅ Screener Check-In", f"Heartbeat at {now_str}")
         last_checkin = now.minute
+# === FAKE TEST CASE FOR DEBUGGING ===
+send_pushover_notification("🚨 Breakout: TEST", "PLTR breakout setup:\nMACD: ✅\nVWAP Reclaim: ✅\nVolume Spike: ❌")
 
     check_breakouts(tickers)
     check_breakouts(reverse_split_tickers, label="RS: ")
