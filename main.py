@@ -140,3 +140,4 @@ def check_breakout_conditions(ticker, label=""):
 # ==== Run Screener ====
 check_breakouts(tickers)
 check_breakouts(reverse_split_tickers, label="RS: ")
+send_pushover_notification("🚨 Test Alert", "This is a manual test from Render.")
