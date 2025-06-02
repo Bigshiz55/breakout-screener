@@ -1,11 +1,39 @@
+
 import yfinance as yf
 import time
 import requests
 import datetime
+import sys
 
 # === PUSHOVER CONFIG ===
 PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
 PUSHOVER_API_TOKEN = "atq27zau5k3caa3tnmfh2cc3e9ru4m"
+
+# Log everything to both console and file
+log_file = open("screener.log", "a")
+sys.stdout = sys.stderr = log_file
+
+def send_pushover_notification(message):
+    requests.post("https://api.pushover.net/1/messages.json", data={
+        "token": PUSHOVER_API_TOKEN,
+        "user": PUSHOVER_USER_KEY,
+        "message": message
+    })
+
+def fetch_data(ticker):
+    try:
+        data = yf.download(ticker, period="5d", interval="5m", progress=False)
+        return data
+    except Exception as e:
+        print(f"Error fetching {ticker}: {e}")
+        return None
+
+def calculate_macd(data):
+    exp1 = data["Close"].ewm(span=12, adjust=False).mean()
+    exp2 = data["Close"].ewm(span=26, adjust=False).mean()
+    macd = exp1 - exp2
+    signal = macd.ewm(span=9, adjust=False).mean()
+    return macd, signal
 
 TICKERS = [
     "AAPL",
@@ -3310,96 +3338,33 @@ TICKERS = [
     "AVGO"
 ]
 
-def send_pushover_notification(message):
-    requests.post("https://api.pushover.net/1/messages.json", data={
-        "token": PUSHOVER_API_TOKEN,
-        "user": PUSHOVER_USER_KEY,
-        "message": message
-    })
-
-def fetch_data(ticker):
-    try:
-        data = yf.download(ticker, period="5d", interval="5m", progress=False)
-        return data
-    except Exception as e:
-        print(f"Error fetching {ticker}: {e}")
-        return None
-
-def calculate_macd(data):
-    exp1 = data["Close"].ewm(span=12, adjust=False).mean()
-    exp2 = data["Close"].ewm(span=26, adjust=False).mean()
-    macd = exp1 - exp2
-    signal = macd.ewm(span=9, adjust=False).mean()
-    return macd, signal
-
-def check_additional_conditions(ticker, data):
-    try:
-        # === Reverse Split Notifier (proxy logic) ===
-        recent_mean = data['Close'].mean()
-        last_close = data['Close'].iloc[-1]
-        if last_close > 5 * recent_mean:
-            send_pushover_notification(f"🔍 Reverse Split Watch: {ticker} may have recently reverse split.")
-
-        # === Float Churn Alert (placeholder logic: float assumed as 100M) ===
-        intraday_volume = data['Volume'].sum()
-        estimated_float = 100_000_000  # Placeholder, replace with accurate float if available
-        if intraday_volume > estimated_float:
-            send_pushover_notification(f"🔥 Float Churn: {ticker} traded more than its float today.")
-
-        # === Gap-Down Recovery ===
-        open_price = data['Open'].iloc[0]
-        low_after_open = data['Low'].iloc[1:10].min()
-        reclaim_vwap = data['Close'].iloc[-1] > data['Close'].mean()
-        if open_price > data['Close'].iloc[-1] and reclaim_vwap and data['Close'].iloc[-1] > low_after_open:
-            send_pushover_notification(f"⚡ Gap-Down Recovery: {ticker} is reclaiming VWAP after gapping down.")
-
-    except Exception as e:
-        print(f"Error in additional checks for {ticker}: {e}")
-
-
 def check_breakouts(tickers):
     for ticker in tickers:
         print(f"🔍 Scanning: {ticker}")
         data = fetch_data(ticker)
         if data is None or len(data) < 35:
             continue
-        check_additional_conditions(ticker, data)
-        vwap = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()
+
+        vwap = (data["Close"] * data["Volume"]).cumsum() / data["Volume"].cumsum()
         macd, signal = calculate_macd(data)
+        latest = data.iloc[-1]
+        prev = data.iloc[-2]
 
-        try:
-            macd_crossed = macd.iloc[-1].item() > signal.iloc[-1].item()
-            vwap_reclaim = data["Close"].iloc[-1].item() > vwap.iloc[-1].item()
+        volume_spike = latest["Volume"] > 1.5 * data["Volume"].rolling(10).mean().iloc[-2]
+        price_above_vwap = latest["Close"] > vwap.iloc[-1]
+        macd_cross = macd.iloc[-1] > signal.iloc[-1]
 
-            if macd_crossed and vwap_reclaim:
-                send_pushover_notification(f"📈 Breakout Alert: {ticker} — MACD Bullish & VWAP Reclaimed")
-        except Exception as e:
-            print(f"Error checking breakout for {ticker}: {e}")
+        print(f"✅ {ticker}: Volume spike = {volume_spike}, VWAP reclaim = {price_above_vwap}, MACD cross = {macd_cross}")
 
-def send_heartbeat():
-    now = datetime.datetime.now().strftime("%H:%M:%S")
-    send_pushover_notification(f"✅ Screener check-in at {now}")
+        send_pushover_notification(f"✅ DEBUG: {ticker} scanned. Volume: {latest['Volume']}, Close: {latest['Close']}")
 
-# === TICKER LIST ===
-tickers = [
-    "G",
-    "H",
-    "M",
-    "X"
-]
-
-# === MAIN LOOP ===
-if __name__ == "__main__":
+def run_screener():
+    send_pushover_notification("🚨 Screener STARTED: Debug Mode Active")
     while True:
-        check_breakouts(tickers)
-        send_heartbeat()
-        time.sleep(900)
+        check_breakouts(TICKERS)
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        send_pushover_notification(f"🫀 Heartbeat: Scanned {len(TICKERS)} tickers at {now}")
+        time.sleep(300)
 
-
-def heartbeat():
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    send_pushover_notification(f"✅ Screener running: {now}")
-
-
-# Start periodic heartbeat
-heartbeat()
+if __name__ == "__main__":
+    run_screener()
