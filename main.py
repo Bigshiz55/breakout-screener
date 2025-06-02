@@ -1,64 +1,60 @@
-import os
-import time
-import requests
 import yfinance as yf
+import requests
 import pandas as pd
-from ta.trend import MACD
 
-# Pushover function
+# === PUSHOVER CONFIGURATION ===
+PUSHOVER_USER_KEY = "your_user_key_here"
+PUSHOVER_API_TOKEN = "your_app_token_here"
+
 def send_pushover_notification(message):
-    user_key = os.getenv("PUSHOVER_USER_KEY")
-    app_token = os.getenv("PUSHOVER_APP_TOKEN")
-    if not user_key or not app_token:
-        print("Missing Pushover credentials")
-        return
-    data = {
-        "token": app_token,
-        "user": user_key,
-        "message": message,
-    }
-    response = requests.post("https://api.pushover.net/1/messages.json", data=data)
-    if response.status_code != 200:
-        print(f"Error sending notification: {response.text}")
-    else:
-        print("✅ Notification sent!")
+    try:
+        response = requests.post(
+            "https://api.pushover.net/1/messages.json",
+            data={
+                "token": PUSHOVER_API_TOKEN,
+                "user": PUSHOVER_USER_KEY,
+                "message": message
+            }
+        )
+        print(f"Pushover response: {response.status_code}")
+    except Exception as e:
+        print(f"Error sending pushover: {e}")
 
-# NASDAQ tickers (full list from your CSV, inline)
-tickers_to_watch = [
-    "AACB", "AACBR", "AACBU", "AACG", "AACIU", "AADR", "AAL", "AAME", "AAOI", "AAON", "AAPB", "AAPD", "AAPG", "AAPL", "AAPU", "AARD", "AAVM", "AAXJ", "ABAT", "ABCL", "ABCS", "ABEO", "ABIG", "ABL", "ABLLL", "ABLLW", "ABLV", "ABLVW", "ABNB", "ABOS", "ABP", "ABPWW", "ABSI", "ABTS", "ABUS", "ABVC", "ABVE", "ABVEW", "ABVX", "ACAD", "ACB", "ACDC", "ACET", "ACGL", "ACGLN", "ACGLO", "ACHC", "ACHV", "ACIC", "ACIU", "ACIW", "ACLS", "ACLX", "ACMR", "ACNB", "ACNT", "ACOG", "ACON", "ACONW", "ACRS", "ACRV", "ACT", "ACTG", "ACTU", "ACWI", "ACWX", "ACXP", "ADAG", "ADAP", "ADBE", "ADBG", "ADD", "ADEA", "ADGM", "ADI", "ADIL", "ADMA", "ADN", "ADNWW", "ADP", "ADPT", "ADSE", "ADSEW"
-]
-
+# === BREAKOUT CHECK LOGIC ===
 def meets_breakout_conditions(df):
-    if len(df) < 35:
+    if len(df) < 2:
         return False
-    macd = MACD(df["Close"])
-    df["macd_diff"] = macd.macd_diff().squeeze()
-
-    recent_vol = df["Volume"].iloc[-1]
-    avg_vol = df["Volume"].rolling(window=20).mean().iloc[-2]
-    vol_spike = recent_vol > avg_vol * 1.5
-
-    macd_crossover = df["macd_diff"].iloc[-1] > 0 and df["macd_diff"].iloc[-2] <= 0
-    vwap_reclaim = df["Close"].iloc[-1] > df["Close"].mean()
-
-    return vol_spike and macd_crossover and vwap_reclaim
+    close = df["Close"].iloc[-1]
+    prev_close = df["Close"].iloc[-2]
+    return close > prev_close * 1.03  # breakout if price jumps 3%
 
 def check_breakouts(tickers):
     print("🧠 Screener is scanning...")
-    df_all = yf.download(tickers, period="1d", interval="1m", group_by="ticker", progress=False)
+    df_all = yf.download(tickers, period="2d", interval="1d", group_by='ticker', threads=True)
+
     for ticker in tickers:
         try:
-            df = df_all[ticker]
-            if meets_breakout_conditions(df):
+            df = df_all[ticker] if len(tickers) > 1 else df_all
+
+            # 🔁 Always trigger test alert for "QBTS"
+            if ticker == "QBTS":
                 price = df["Close"].iloc[-1]
-                message = f"{ticker} breakout! Price: ${price:.2f}"
+                message = f"🔥 TEST ALERT: {ticker} at ${price:.2f}"
                 print(message)
                 send_pushover_notification(message)
+                continue
+
+            if meets_breakout_conditions(df):
+                price = df["Close"].iloc[-1]
+                message = f"{ticker} breakout! Current price: ${price:.2f}"
+                print(message)
+                send_pushover_notification(message)
+
         except Exception as e:
             print(f"Error with {ticker}: {e}")
 
-# MAIN LOOP
-print("📈 Breakout screener is LIVE")
-while True:
-    check_breakouts(tickers_to_watch)
-    time.sleep(60)
+# === MAIN ENTRY POINT ===
+if __name__ == "__main__":
+    # 🧪 Add or replace tickers here
+    tickers = ["QBTS", "TSLA", "AAPL", "AMD", "NVDA"]
+    check_breakouts(tickers)
