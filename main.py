@@ -2,6 +2,7 @@ import yfinance as yf
 import time
 import requests
 import datetime
+import pandas as pd
 
 # === PUSHOVER CONFIG ===
 PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
@@ -37,7 +38,12 @@ def check_breakouts(tickers):
         vwap = (data["Close"] * data["Volume"]).cumsum() / data["Volume"].cumsum()
         macd, signal = calculate_macd(data)
 
-        if macd.iloc[-1] > signal.iloc[-1] and data["Close"].iloc[-1] > vwap.iloc[-1]:
+        macd_cross = macd.iloc[-1] > signal.iloc[-1]
+        vwap_reclaim = False
+        if isinstance(vwap, pd.Series):
+            vwap_reclaim = data["Close"].iloc[-1] > vwap.iloc[-1]
+
+        if macd_cross and vwap_reclaim:
             send_pushover_notification(f"📈 Breakout Alert: {ticker} — MACD Bullish & VWAP Reclaimed")
 
 def send_heartbeat():
@@ -3590,4 +3596,3 @@ if __name__ == "__main__":
         check_breakouts(tickers)
         send_heartbeat()
         time.sleep(900)  # 15 minutes
-
