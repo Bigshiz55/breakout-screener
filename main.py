@@ -58,4 +58,3 @@ def get_recent_reverse_splits():
 def calculate_macd(data):
     exp12 = data['Close'].ewm(span=12, adjust=False).mean()
     exp26 = data['Close'].ewm(span=26, adjust=False).mean()
-
