@@ -95,8 +95,8 @@ while True:
 # === FAKE TEST CASE FOR DEBUGGING ===
 send_pushover_notification("🚨 Breakout: TEST", "PLTR breakout setup:\nMACD: ✅\nVWAP Reclaim: ✅\nVolume Spike: ❌")
 
-    check_breakouts(tickers)
-    check_breakouts(reverse_split_tickers, label="RS: ")
-    time.sleep(60)
+check_breakouts(tickers)
+check_breakouts(reverse_split_tickers, label="RS: ")
+time.sleep(60)
 
 
