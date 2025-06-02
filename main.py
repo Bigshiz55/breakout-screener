@@ -30,12 +30,10 @@ def send_pushover_notification(title, message):
 def get_recent_reverse_splits():
     url = "https://www.nasdaq.com/market-activity/stocks/splits"
     headers = {'User-Agent': 'Mozilla/5.0'}
-
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
         table = soup.find("table")
-
         tickers = []
         if table:
             rows = table.find_all("tr")[1:]
@@ -44,12 +42,8 @@ def get_recent_reverse_splits():
                 if len(cols) >= 3:
                     ratio = cols[2].text.strip()
                     if ":" in ratio:
-                        a, b = ratio.split(":")
-                        if a.isdigit() and b.isdigit() and int(a) > int(b):  # Reverse split
-                            ticker = cols[0].text.strip().upper()
-                            tickers.append(ticker)
-        print(f"Auto-loaded reverse split tickers: {tickers}")
-        return tickers
+                       
+
     except Exception as e:
         print(f"Error fetching reverse splits: {e}")
         return []
