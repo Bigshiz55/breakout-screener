@@ -9,6 +9,8 @@ import time
 PUSHOVER_USER_KEY = "your_user_key"
 PUSHOVER_API_TOKEN = "your_app_token"
 
+bad_symbols = set()  # Track failed tickers
+
 def send_pushover_notification(title, message):
     try:
         payload = {
@@ -22,21 +24,22 @@ def send_pushover_notification(title, message):
     except Exception as e:
         print(f"❌ Pushover failed: {e}")
 
-# === BREAKOUT SCANNER ===
 def check_breakouts(ticker_list, label=""):
+    global bad_symbols
     for symbol in ticker_list:
+        if symbol in bad_symbols:
+            continue
         try:
             data = yf.download(symbol, period="5d", interval="5m", progress=False, threads=False)
             if data.empty or len(data) < 50:
-                print(f"{label}{symbol}: ❌ No valid price data.")
+                print(f"{label}{symbol}: ❌ No data or too few bars.")
+                bad_symbols.add(symbol)
                 continue
 
             close = data["Close"]
-            exp1 = close.ewm(span=12, adjust=False).mean()
-            exp2 = close.ewm(span=26, adjust=False).mean()
-            macd = exp1 - exp2
-            signal = macd.ewm(span=9, adjust=False).mean()
-            macd_cross = macd.iloc[-1] > signal.iloc[-1] and macd.iloc[-2] <= signal.iloc[-2]
+            macd_line = close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()
+            signal_line = macd_line.ewm(span=9, adjust=False).mean()
+            macd_cross = macd_line.iloc[-2] <= signal_line.iloc[-2] and macd_line.iloc[-1] > signal_line.iloc[-1]
 
             typical_price = (data["High"] + data["Low"] + data["Close"]) / 3
             vwap = (typical_price * data["Volume"]).cumsum() / data["Volume"].cumsum()
@@ -54,29 +57,18 @@ def check_breakouts(ticker_list, label=""):
 
         except Exception as e:
             print(f"{label}{symbol} error: {e}")
+            bad_symbols.add(symbol)
 
-# === FULL NASDAQ TICKERS (300+ cleaned and filtered) ===
+# === CLEANED NASDAQ TICKERS (replace/add more as needed) ===
 tickers = [
-    "AAPL", "MSFT", "GOOG", "GOOGL", "AMZN", "NVDA", "TSLA", "META", "AVGO", "PEP", "ADBE", "COST", "INTC", "CMCSA",
-    "NFLX", "AMD", "QCOM", "TXN", "INTU", "ISRG", "AMGN", "VRTX", "BKNG", "GILD", "ADP", "ADI", "MU", "REGN", "MDLZ",
-    "LRCX", "PANW", "MCHP", "CSGP", "MAR", "CRWD", "KLAC", "DXCM", "PDD", "CDNS", "FTNT", "EXC", "SIRI", "FAST",
-    "ROST", "MRVL", "EA", "WBD", "CTAS", "MNST", "ORLY", "PAYX", "ZM", "DOCU", "TEAM", "SNOW", "DDOG", "BILL", "ROKU",
-    "SHOP", "SE", "ABNB", "MDB", "CRSP", "PLTR", "ZS", "SPLK", "OKTA", "NTNX", "NET", "FSLY", "U", "UPST", "COIN",
-    "SOFI", "LCID", "RIVN", "FUBO", "CVNA", "OSTK", "MTCH", "TTD", "DKNG", "SQ", "PYPL", "PINS", "SNAP", "RBLX",
-    "ETSY", "TWLO", "DASH", "SEDG", "ENPH", "RUN", "NIO", "XPEV", "LI", "BIDU", "JD", "BABA", "NTES", "GS", "JPM",
-    "BAC", "C", "WFC", "USB", "SCHW", "COF", "TROW", "NDAQ", "V", "MA", "AXP", "SPGI", "MSCI", "ICE", "CME", "MCO",
-    "BRO", "AJG", "PGR", "TRV", "ALL", "CB", "MKTX", "EVR", "SF", "RJF", "BEN", "IVZ", "TFC", "FITB", "KEY", "HBAN",
-    "RF", "ZION", "CFG", "MTB", "CMA", "ALLY", "WAL", "NYCB", "FRC", "PACW", "WDC", "STX", "NTAP", "BNTX", "MRNA",
-    "ILMN", "EXAS", "SRPT", "IONS", "ACAD", "BMRN", "PTCT", "BIIB", "NBIX", "ALNY", "SGEN", "INCY", "KRTX", "TXG",
-    "NVCR", "IDXX", "SWAV", "PEN", "GMED", "AORT", "BSX", "BSGM", "XENT", "MASI", "TNDM", "SILK", "CSII", "ICUI",
-    "INSP", "EW", "NVRO", "XRAY", "RGEN", "RMD", "OMCL", "SYK", "BDX", "ZBH", "ALGN", "TFX", "HRC", "COO", "STE",
-    "PODD", "TMO", "PKI", "A", "QDEL", "BIO", "IQV", "DGX", "LH", "MTD", "WAT", "BRKR", "CRL", "NEOG", "ABC", "MCK", "CAH"
+    "AAPL", "MSFT", "GOOG", "AMZN", "NVDA", "META", "TSLA", "PEP", "ADBE", "COST", "NFLX", "AMD", "QCOM",
+    "TXN", "INTU", "ISRG", "AMGN", "VRTX", "MU", "CDNS", "FTNT", "CRWD", "PANW", "ROKU", "PLTR", "COIN", "SOFI",
+    "DKNG", "PYPL", "PINS", "SNAP", "RBLX", "ETSY", "RUN", "ENPH", "NIO", "XPEV", "LI", "BIDU", "JD", "BABA"
 ]
 
-# === REVERSE SPLIT WATCH LIST ===
 reverse_split_tickers = ["APDN", "BNRG", "TAOP", "EKSO"]
 
-# === MAIN LOOP ===
+# === LOOP ===
 print("✅ Screener started...")
 
 while True:
@@ -86,3 +78,4 @@ while True:
     check_breakouts(tickers)
     check_breakouts(reverse_split_tickers, label="RS: ")
     time.sleep(60)
+
