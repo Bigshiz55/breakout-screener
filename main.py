@@ -5,9 +5,9 @@ from datetime import datetime
 import requests
 import time
 
-# === PUSHOVER CONFIG (replace these) ===
-PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
-PUSHOVER_API_TOKEN = "atq27zau5k3caa3tnmfh2cc3e9ru4m"
+# === PUSHOVER CONFIG (replace these with your real keys) ===
+PUSHOVER_USER_KEY = "your_real_user_key_here"
+PUSHOVER_API_TOKEN = "your_real_api_token_here"
 
 bad_symbols = set()
 
@@ -67,7 +67,7 @@ def check_breakouts(ticker_list, label=""):
 def send_test_push():
     send_pushover_notification("✅ Test Message", "Your screener push alert is working!")
 
-# === CLEAN NASDAQ LIST ===
+# === TICKERS TO WATCH ===
 tickers = [
     "AAPL", "MSFT", "GOOG", "AMZN", "NVDA", "META", "TSLA", "PEP", "ADBE", "COST", "NFLX", "AMD", "QCOM",
     "TXN", "INTU", "ISRG", "AMGN", "VRTX", "MU", "CDNS", "FTNT", "CRWD", "PANW", "ROKU", "PLTR", "COIN", "SOFI",
@@ -76,27 +76,29 @@ tickers = [
 
 reverse_split_tickers = ["APDN", "BNRG", "TAOP", "EKSO"]
 
-# === START ===
+# === START SCRIPT ===
 print("✅ Screener started...")
 send_test_push()
 
-last_checkin = 0
+last_checkin = -1
 
 while True:
     now = datetime.now()
     now_str = now.strftime('%Y-%m-%d %H:%M:%S')
-
     print(f"\n🔄 Scan running at {now_str}")
-    
-    # Only send check-in once every 15 minutes
+
+    # Only send heartbeat every 15 minutes
     if (now.minute % 15 == 0) and (now.minute != last_checkin):
         send_pushover_notification("✅ Screener Check-In", f"Heartbeat at {now_str}")
         last_checkin = now.minute
-# === FAKE TEST CASE FOR DEBUGGING ===
-send_pushover_notification("🚨 Breakout: TEST", "PLTR breakout setup:\nMACD: ✅\nVWAP Reclaim: ✅\nVolume Spike: ❌")
 
-check_breakouts(tickers)
-check_breakouts(reverse_split_tickers, label="RS: ")
-time.sleep(60)
+    # === FAKE PLTR BREAKOUT ALERT ===
+    send_pushover_notification("🚨 Breakout: TEST", "PLTR breakout setup:\nMACD: ✅\nVWAP Reclaim: ✅\nVolume Spike: ❌")
+
+    # === LIVE SCAN ===
+    check_breakouts(tickers)
+    check_breakouts(reverse_split_tickers, label="RS: ")
+
+    time.sleep(60)
 
 
