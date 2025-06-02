@@ -3332,6 +3332,31 @@ def calculate_macd(data):
     signal = macd.ewm(span=9, adjust=False).mean()
     return macd, signal
 
+def check_additional_conditions(ticker, data):
+    try:
+        # === Reverse Split Notifier (proxy logic) ===
+        recent_mean = data['Close'].mean()
+        last_close = data['Close'].iloc[-1]
+        if last_close > 5 * recent_mean:
+            send_pushover_notification(f"🔍 Reverse Split Watch: {ticker} may have recently reverse split.")
+
+        # === Float Churn Alert (placeholder logic: float assumed as 100M) ===
+        intraday_volume = data['Volume'].sum()
+        estimated_float = 100_000_000  # Placeholder, replace with accurate float if available
+        if intraday_volume > estimated_float:
+            send_pushover_notification(f"🔥 Float Churn: {ticker} traded more than its float today.")
+
+        # === Gap-Down Recovery ===
+        open_price = data['Open'].iloc[0]
+        low_after_open = data['Low'].iloc[1:10].min()
+        reclaim_vwap = data['Close'].iloc[-1] > data['Close'].mean()
+        if open_price > data['Close'].iloc[-1] and reclaim_vwap and data['Close'].iloc[-1] > low_after_open:
+            send_pushover_notification(f"⚡ Gap-Down Recovery: {ticker} is reclaiming VWAP after gapping down.")
+
+    except Exception as e:
+        print(f"Error in additional checks for {ticker}: {e}")
+
+
 def check_breakouts(tickers):
     for ticker in tickers:
         data = fetch_data(ticker)
@@ -3369,30 +3394,6 @@ if __name__ == "__main__":
         send_heartbeat()
         time.sleep(900)
 
-
-def check_additional_conditions(ticker, data):
-    try:
-        # === Reverse Split Notifier (proxy logic) ===
-        recent_mean = data['Close'].mean()
-        last_close = data['Close'].iloc[-1]
-        if last_close > 5 * recent_mean:
-            send_pushover_notification(f"🔍 Reverse Split Watch: {ticker} may have recently reverse split.")
-
-        # === Float Churn Alert (placeholder logic: float assumed as 100M) ===
-        intraday_volume = data['Volume'].sum()
-        estimated_float = 100_000_000  # Placeholder, replace with accurate float if available
-        if intraday_volume > estimated_float:
-            send_pushover_notification(f"🔥 Float Churn: {ticker} traded more than its float today.")
-
-        # === Gap-Down Recovery ===
-        open_price = data['Open'].iloc[0]
-        low_after_open = data['Low'].iloc[1:10].min()
-        reclaim_vwap = data['Close'].iloc[-1] > data['Close'].mean()
-        if open_price > data['Close'].iloc[-1] and reclaim_vwap and data['Close'].iloc[-1] > low_after_open:
-            send_pushover_notification(f"⚡ Gap-Down Recovery: {ticker} is reclaiming VWAP after gapping down.")
-
-    except Exception as e:
-        print(f"Error in additional checks for {ticker}: {e}")
 
 def heartbeat():
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
