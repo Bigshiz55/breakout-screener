@@ -35,13 +35,12 @@ def check_breakouts(tickers):
         data = fetch_data(ticker)
         if data is None or len(data) < 35:
             continue
-        vwap = (data["Close"] * data["Volume"]).cumsum() / data["Volume"].cumsum()
-        macd, signal = calculate_macd(data)
+        vwap_series = (data["Close"] * data["Volume"]).cumsum() / data["Volume"].cumsum()
+        vwap_value = vwap_series.iloc[-1] if not vwap_series.empty else 0
+        vwap_reclaim = bool(data["Close"].iloc[-1] > vwap_value)
 
-        macd_cross = macd.iloc[-1] > signal.iloc[-1]
-        vwap_reclaim = False
-        if isinstance(vwap, pd.Series):
-            vwap_reclaim = data["Close"].iloc[-1] > vwap.iloc[-1]
+        macd, signal = calculate_macd(data)
+        macd_cross = bool(macd.iloc[-1] > signal.iloc[-1])
 
         if macd_cross and vwap_reclaim:
             send_pushover_notification(f"📈 Breakout Alert: {ticker} — MACD Bullish & VWAP Reclaimed")
