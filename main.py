@@ -5,7 +5,7 @@ from datetime import datetime
 import requests
 import time
 
-# === PUSHOVER CONFIG ===
+# === PUSHOVER CONFIG (replace these) ===
 PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
 PUSHOVER_API_TOKEN = "atq27zau5k3caa3tnmfh2cc3e9ru4m"
 
@@ -64,6 +64,9 @@ def check_breakouts(ticker_list, label=""):
             print(f"{label}{symbol} error: {e}")
             bad_symbols.add(symbol)
 
+def send_test_push():
+    send_pushover_notification("✅ Test Message", "Your screener push alert is working!")
+
 # === CLEAN NASDAQ LIST ===
 tickers = [
     "AAPL", "MSFT", "GOOG", "AMZN", "NVDA", "META", "TSLA", "PEP", "ADBE", "COST", "NFLX", "AMD", "QCOM",
@@ -73,8 +76,10 @@ tickers = [
 
 reverse_split_tickers = ["APDN", "BNRG", "TAOP", "EKSO"]
 
-# === LOOP ===
+# === START ===
 print("✅ Screener started...")
+
+send_test_push()  # Sends a test push when service starts
 
 while True:
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -83,4 +88,5 @@ while True:
     check_breakouts(tickers)
     check_breakouts(reverse_split_tickers, label="RS: ")
     time.sleep(60)
+
 
