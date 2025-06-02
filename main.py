@@ -6,8 +6,8 @@ import requests
 import time
 
 # === PUSHOVER CONFIG ===
-PUSHOVER_USER_KEY = "your_user_key"
-PUSHOVER_API_TOKEN = "your_app_token"
+PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
+PUSHOVER_API_TOKEN = "atq27zau5k3caa3tnmfh2cc3e9ru4m"
 
 bad_symbols = set()
 
