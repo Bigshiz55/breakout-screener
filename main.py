@@ -8,16 +8,8 @@ PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
 PUSHOVER_API_TOKEN = "a1tg7ugcknh8tv7p3nrp881272yqzk"
 
 def send_pushover_notification(message):
-    try:
-        data = {
-            "token": PUSHOVER_API_TOKEN,
-            "user": PUSHOVER_USER_KEY,
-            "message": message
-        }
-        response = requests.post("https://api.pushover.net/1/messages.json", data=data)
-        print("✅ Pushover sent:", message)
-    except Exception as e:
-        print("❌ Pushover error:", e)
+send_pushover_notification("🚨 TEST ALERT", "This is a manual Pushover test from the screener.")
+
 
 # ==== Breakout Logic ====
 def meets_breakout_conditions(df):
