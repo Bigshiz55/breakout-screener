@@ -38,11 +38,11 @@ def check_breakouts(tickers):
         macd, signal = calculate_macd(data)
 
         try:
-            macd_crossed = macd.iloc[-2].item() < signal.iloc[-2].item() and macd.iloc[-1].item() > signal.iloc[-1].item()
+            macd_crossed = macd.iloc[-1].item() > signal.iloc[-1].item()
             vwap_reclaim = data["Close"].iloc[-1].item() > vwap.iloc[-1].item()
 
             if macd_crossed and vwap_reclaim:
-                send_pushover_notification(f"📈 Breakout Alert: {ticker} — MACD Bullish Crossover & VWAP Reclaimed")
+                send_pushover_notification(f"📈 Breakout Alert: {ticker} — MACD Bullish & VWAP Reclaimed")
         except Exception as e:
             print(f"Error checking breakout for {ticker}: {e}")
 
