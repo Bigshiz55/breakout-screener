@@ -3323,7 +3323,9 @@ def scan_unusual_volume(tickers):
         try:
             stock = yf.Ticker(ticker)
             hist = stock.history(period="10d")
-            if len(hist) < 5: continue
+            if hist.empty or len(hist) < 5:
+                print(f"⛔ Skipped: {ticker} (no price data)")
+                continue
 
             latest_price = hist["Close"].iloc[-1]
             latest_volume = hist["Volume"].iloc[-1]
@@ -3343,9 +3345,10 @@ def scan_unusual_volume(tickers):
                         "{} ({})\nPrice: ${:.2f}\nVolume: {:,} > Avg: {:,}".format(
                             ticker, name, latest_price, int(latest_volume), int(avg_volume)))
         except Exception as e:
-            print("Error with {}: {}".format(ticker, e))
+            print("⚠️ Error with {}: {}".format(ticker, e))
 
 if __name__ == "__main__":
+    send_pushover("✅ Scanner Online", "Unusual volume scanner is now running.")
     while True:
         scan_unusual_volume(TICKERS)
         send_pushover("🫀 Scanner Heartbeat", "✅ Cycle completed across {} tickers.".format(len(TICKERS)))
