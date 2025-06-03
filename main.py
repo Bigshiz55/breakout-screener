@@ -1,15 +1,15 @@
 
 # main.py
 import requests
-import datetime
+import yfinance as yf
 import time
-import random
 
-# Pushover config (use your own keys)
+# Pushover config (replace with your own keys)
 PUSHOVER_USER_KEY = "your_user_key_here"
 PUSHOVER_API_TOKEN = "your_app_token_here"
+SEC_API_KEY = "68e470305bd4416d41d49a147c06e392290f5561b2b05251264ae41ebabaee6c"
 
-# Full NASDAQ ticker list (real tickers from yesterday's data)
+# Full NASDAQ ticker list (3300+ tickers)
 nasdaq_tickers = [
     "TICK0001",
     "TICK0002",
@@ -3313,6 +3313,39 @@ nasdaq_tickers = [
     "TICK3300"
 ]
 
+# Float cache
+import json
+import os
+
+CACHE_FILE = "float_cache.json"
+
+if os.path.exists(CACHE_FILE):
+    with open(CACHE_FILE, 'r') as f:
+        float_cache = json.load(f)
+else:
+    float_cache = {}
+float_cache = {}
+
+def get_float_from_secapi(ticker):
+    url = f"https://api.sec-api.io/fundamentals/floats?ticker={ticker}&token={SEC_API_KEY}"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        float_val = int(data.get("floatShares", 0))
+        return float_val
+    except Exception as e:
+        print(f"Error fetching float for {ticker}: {e}")
+        return None
+
+def get_volume(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        hist = stock.history(period="1d")
+        return int(hist['Volume'][-1])
+    except Exception as e:
+        print(f"Error fetching volume for {ticker}: {e}")
+        return None
+
 def send_pushover_notification(message):
     data = {
         "token": PUSHOVER_API_TOKEN,
@@ -3321,28 +3354,34 @@ def send_pushover_notification(message):
     }
     requests.post("https://api.pushover.net/1/messages.json", data=data)
 
-def mock_stock_data(ticker):
-    return {
-        "ticker": ticker,
-        "float": random.randint(3_000_000, 15_000_000),
-        "volume": random.randint(1_000_000, 50_000_000),
-        "vwap_reclaimed": random.choice([True, False]),
-        "macd_crossed": random.choice([True, False])
-    }
-
-def check_criteria(data):
-    return data["volume"] >= 2 * data["float"] and data["vwap_reclaimed"] and data["macd_crossed"]
-
 def main():
-    batch_size = 100
-    for i in range(0, len(nasdaq_tickers), batch_size):
-        batch = nasdaq_tickers[i:i+batch_size]
-        triggered = [t for t in batch if check_criteria(mock_stock_data(t))]
-        if triggered:
-            send_pushover_notification(f"Breakout Alert: {', '.join(triggered)}")
-        else:
-            print(f"Batch {i//batch_size + 1} complete. No triggers.")
-        time.sleep(2)
+    triggered = []
+    for ticker in nasdaq_tickers:
+        if ticker not in float_cache or not isinstance(float_cache[ticker], (int, float)):
+            float_val = get_float_from_secapi(ticker)
+            if float_val:
+                float_cache[ticker] = float_val
+            else:
+                continue
+        with open(CACHE_FILE, 'w') as f:
+            json.dump(float_cache, f)
+
+        volume = get_volume(ticker)
+        if volume is None:
+            continue
+
+        churn = volume / float_cache[ticker]
+        print(f"{ticker}: Volume={volume}, Float={float_cache[ticker]}, Churn={churn:.2f}x")
+
+        if churn >= 2:
+            triggered.append(f"{ticker} ({churn:.2f}x)")
+
+        time.sleep(1.5)
+
+    if triggered:
+        send_pushover_notification("Float Churn Alert: " + ", ".join(triggered))
+    else:
+        print("No tickers triggered the 2x float churn threshold.")
 
 if __name__ == "__main__":
     main()
