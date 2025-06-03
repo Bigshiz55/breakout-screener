@@ -34,6 +34,26 @@ def get_latest_volume(ticker):
             start=datetime.datetime.now() - datetime.timedelta(minutes=15),
         )
         bars = client.get_stock_bars(request_params)
+        if bars is None:
+            raise ValueError("No data returned from Alpaca")
+        if not hasattr(bars, 'df') or bars.df is None or bars.df.empty:
+            raise ValueError("Empty or missing dataframe")
+        df = bars.df[bars.df.index.get_level_values(0) == ticker]
+        if df.empty:
+            raise ValueError("No bars found for ticker")
+        latest_bar = df.iloc[-1]
+        return latest_bar.close, latest_bar.volume
+    except Exception as e:
+        print(f"Error fetching volume for {ticker}: {e}")
+        return None, 0
+
+    try:
+        request_params = StockBarsRequest(
+            symbol_or_symbols=ticker,
+            timeframe=TimeFrame.Minute,
+            start=datetime.datetime.now() - datetime.timedelta(minutes=15),
+        )
+        bars = client.get_stock_bars(request_params)
         if not bars or not hasattr(bars, 'df') or bars.df.empty:
             return None, 0
         df = bars.df[bars.df.index.get_level_values(0) == ticker]
