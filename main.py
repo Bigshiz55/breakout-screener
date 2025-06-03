@@ -33,6 +33,24 @@ def get_latest_volume(ticker):
             timeframe=TimeFrame.Minute,
             start=datetime.datetime.now() - datetime.timedelta(minutes=15),
         )
+        bars = client.get_stock_bars(request_params)
+        if not bars or not hasattr(bars, 'df') or bars.df.empty:
+            return None, 0
+        df = bars.df[bars.df.index.get_level_values(0) == ticker]
+        if df.empty:
+            return None, 0
+        latest_bar = df.iloc[-1]
+        return latest_bar.close, latest_bar.volume
+    except Exception as e:
+        print(f"Error fetching volume for {ticker}: {e}")
+        return None, 0
+
+    try:
+        request_params = StockBarsRequest(
+            symbol_or_symbols=ticker,
+            timeframe=TimeFrame.Minute,
+            start=datetime.datetime.now() - datetime.timedelta(minutes=15),
+        )
         bars = client.get_stock_bars(request_params).df
         if bars.empty:
             return None, 0
