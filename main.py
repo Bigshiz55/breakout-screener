@@ -1,39 +1,18 @@
 
 import yfinance as yf
-import time
 import requests
-import datetime
-import sys
+import time
 
-# === PUSHOVER CONFIG ===
 PUSHOVER_USER_KEY = "uiyuixjg93r2kbmbhnpfcjfqhmh8s9"
 PUSHOVER_API_TOKEN = "atq27zau5k3caa3tnmfh2cc3e9ru4m"
 
-# Log everything to both console and file
-log_file = open("screener.log", "a")
-sys.stdout = sys.stderr = log_file
-
-def send_pushover_notification(message):
+def send_pushover(title, message):
     requests.post("https://api.pushover.net/1/messages.json", data={
         "token": PUSHOVER_API_TOKEN,
         "user": PUSHOVER_USER_KEY,
+        "title": title,
         "message": message
     })
-
-def fetch_data(ticker):
-    try:
-        data = yf.download(ticker, period="5d", interval="5m", progress=False)
-        return data
-    except Exception as e:
-        print(f"Error fetching {ticker}: {e}")
-        return None
-
-def calculate_macd(data):
-    exp1 = data["Close"].ewm(span=12, adjust=False).mean()
-    exp2 = data["Close"].ewm(span=26, adjust=False).mean()
-    macd = exp1 - exp2
-    signal = macd.ewm(span=9, adjust=False).mean()
-    return macd, signal
 
 TICKERS = [
     "AAPL",
@@ -3339,35 +3318,35 @@ TICKERS = [
 ]
 
 
-def check_breakouts(tickers):
+def scan_unusual_volume(tickers):
     for ticker in tickers:
-        print(f"🔍 Scanning: {ticker}")
-        data = fetch_data(ticker)
-        if data is None or len(data) < 35:
-            continue
+        try:
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period="10d")
+            if len(hist) < 5: continue
 
-        vwap = (data["Close"] * data["Volume"]).cumsum() / data["Volume"].cumsum()
-        macd, signal = calculate_macd(data)
-        latest = data.iloc[-1]
-        prev = data.iloc[-2]
+            latest_price = hist["Close"].iloc[-1]
+            latest_volume = hist["Volume"].iloc[-1]
+            avg_volume = hist["Volume"].iloc[:-1].mean()
 
-        volume_spike = latest["Volume"] > 1.5 * data["Volume"].rolling(10).mean().iloc[-2]
-        price_above_vwap = latest["Close"] > vwap.iloc[-1]
-        macd_cross = macd.iloc[-1] > signal.iloc[-1]
+            if latest_price < 5 and latest_volume > 2 * avg_volume:
+                info = stock.info
+                pt = info.get("targetMeanPrice")
+                name = info.get("shortName", ticker)
 
-        print(f"✅ {ticker} | Vol Spike: {volume_spike}, VWAP: {price_above_vwap}, MACD: {macd_cross}")
-
-        score = sum([volume_spike, price_above_vwap, macd_cross])
-        if score >= 2:
-            send_pushover_notification(f"📈 Breakout: {ticker} meets {score}/3 breakout criteria.")
-
-def run_screener():
-    send_pushover_notification("🚨 Screener STARTED: Real Alert Mode")
-    while True:
-        check_breakouts(TICKERS)
-        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        send_pushover_notification(f"🫀 Heartbeat: Scanned {len(TICKERS)} tickers at {now}")
-        time.sleep(300)
+                if pt and pt > 0:
+                    send_pushover("📊 Analyst-Covered Spike",
+                        "{} ({})\nPrice: ${:.2f} | Target: ${:.2f}\nVolume: {:,} > Avg: {:,}".format(
+                            ticker, name, latest_price, pt, int(latest_volume), int(avg_volume)))
+                else:
+                    send_pushover("🔥 Unusual Volume < $5",
+                        "{} ({})\nPrice: ${:.2f}\nVolume: {:,} > Avg: {:,}".format(
+                            ticker, name, latest_price, int(latest_volume), int(avg_volume)))
+        except Exception as e:
+            print("Error with {}: {}".format(ticker, e))
 
 if __name__ == "__main__":
-    run_screener()
+    while True:
+        scan_unusual_volume(TICKERS)
+        send_pushover("🫀 Scanner Heartbeat", "✅ Cycle completed across {} tickers.".format(len(TICKERS)))
+        time.sleep(600)  # 10 minutes
