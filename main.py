@@ -33,6 +33,24 @@ def get_latest_volume(ticker):
             timeframe=TimeFrame.Minute,
             start=datetime.datetime.now() - datetime.timedelta(minutes=15),
         )
+        result = client.get_stock_bars(request_params)
+        if not result or not hasattr(result, 'data'):
+            raise ValueError("No result or missing data attribute")
+        bars = result.data.get(ticker, [])
+        if not bars:
+            raise ValueError("No bars returned for ticker")
+        latest_bar = bars[-1]
+        return latest_bar.close, latest_bar.volume
+    except Exception as e:
+        print(f"Error fetching volume for {ticker}: {e}")
+        return None, 0
+
+    try:
+        request_params = StockBarsRequest(
+            symbol_or_symbols=ticker,
+            timeframe=TimeFrame.Minute,
+            start=datetime.datetime.now() - datetime.timedelta(minutes=15),
+        )
         bars = client.get_stock_bars(request_params)
         if bars is None:
             raise ValueError("No data returned from Alpaca")
@@ -85,8 +103,7 @@ def main():
     print("✅ Screener online and scanning...")
     send_pushover_notification("Screener Active", "Live scanning all IEX stocks.")
 
-    tickers = [
-    "REVB", "SOFI", "PLTR", "SNAP", "CHGG", "NNDM", "BBBYQ", "BNGO", "BBBY", "GPRO", "RIOT", "MARA", "FCEL", "CLOV", "SNDL", "IDEX", "HUT", "BKKT", "UAVS", "CANO", "BRQS", "TRKA", "XELA", "BTBT", "VERB", "FFIE", "GNS"'AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMD', 'INTC', 'META', 'GOOGL', 'AMZN', 'NFLX', 'BABA', 'SOFI', 'PLTR', 'SNAP', 'F', 'GM', 'BAC', 'WFC', 'T', 'XOM']
+    tickers = ['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMD', 'INTC', 'META', 'GOOGL', 'AMZN', 'NFLX', 'BABA', 'SOFI', 'PLTR', 'SNAP', 'F', 'GM', 'BAC', 'WFC', 'T', 'XOM']
     last_status = time.time()
 
     while True:
