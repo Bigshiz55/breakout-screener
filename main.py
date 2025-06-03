@@ -1,3 +1,4 @@
+print("🚨 main.py file loaded...")
 
 import os
 import time
@@ -65,5 +66,6 @@ def main():
             send_pushover_notification("⏰ Screener Alive", "Still scanning IEX stocks.")
             last_status = time.time()
 
+print("🚀 Calling main()...")
 if __name__ == "__main__":
     main()
