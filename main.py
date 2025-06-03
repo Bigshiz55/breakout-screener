@@ -9,8 +9,8 @@ from alpaca.data.timeframe import TimeFrame
 # === API Keys ===
 ALPACA_API_KEY = 'PK9Q5A5VXR9HZ3K9CQZH'
 ALPACA_SECRET_KEY = 'uNgyydMfQj7LDbIzoCNXQ5KEXsPYgvRmOwguv4z6'
-PUSHOVER_USER_KEY = 'uqqxt3k1dh6z3c9n47rpj5hoqs3wnv'
-PUSHOVER_APP_TOKEN = 'az7z9kd4zszqjq3i79uybap8jfjwfg'
+PUSHOVER_USER_KEY = 'uiyuixjg93r2kbmbhnpfcjfqhmh8s9'
+PUSHOVER_APP_TOKEN = 'atq27zau5k3caa3tnmfh2cc3e9ru4m'
 
 client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
 
