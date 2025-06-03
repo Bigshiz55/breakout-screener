@@ -77,6 +77,7 @@ def send_pushover_notification(title, message):
         "title": title,
         "message": message
     }
+    print(f"Sending Pushover alert: {title} – {message}")
     requests.post(url, data=data)
 
 # === Screener Logic ===
@@ -118,6 +119,11 @@ def check_breakout_conditions(ticker):
         float_churn = flt > 0 and total_volume >= 2 * flt
 
         if volume_spike and macd_cross and vwap_reclaim and float_churn:
+        # === Secondary Float Alert ===
+        elif volume_spike and float_churn:
+            message = f"{ticker} float alert:\nVol Spike + Float ≥ 2x"
+            send_pushover_notification("Float Alert", message)
+
             message = f"{ticker} breakout:\nVol Spike, MACD Cross, VWAP Reclaim, Float Churn"
             send_pushover_notification("Breakout Alert", message)
 
