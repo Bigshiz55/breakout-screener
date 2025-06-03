@@ -85,7 +85,8 @@ def main():
     print("✅ Screener online and scanning...")
     send_pushover_notification("Screener Active", "Live scanning all IEX stocks.")
 
-    tickers = ['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMD', 'INTC', 'META', 'GOOGL', 'AMZN', 'NFLX', 'BABA', 'SOFI', 'PLTR', 'SNAP', 'F', 'GM', 'BAC', 'WFC', 'T', 'XOM']
+    tickers = [
+    "REVB", "SOFI", "PLTR", "SNAP", "CHGG", "NNDM", "BBBYQ", "BNGO", "BBBY", "GPRO", "RIOT", "MARA", "FCEL", "CLOV", "SNDL", "IDEX", "HUT", "BKKT", "UAVS", "CANO", "BRQS", "TRKA", "XELA", "BTBT", "VERB", "FFIE", "GNS"'AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMD', 'INTC', 'META', 'GOOGL', 'AMZN', 'NFLX', 'BABA', 'SOFI', 'PLTR', 'SNAP', 'F', 'GM', 'BAC', 'WFC', 'T', 'XOM']
     last_status = time.time()
 
     while True:
