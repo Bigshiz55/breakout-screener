@@ -10,7 +10,9 @@ from alpaca.data.timeframe import TimeFrame
 ALPACA_API_KEY = os.getenv("APCA_API_KEY_ID", "your_alpaca_key_here")
 ALPACA_SECRET_KEY = os.getenv("APCA_API_SECRET_KEY", "your_alpaca_secret_here")
 
+print("Initializing Alpaca client...")
 client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
+print("✅ Alpaca client initialized.")
 
 def send_pushover_notification(title, message):
     requests.post(
