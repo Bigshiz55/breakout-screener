@@ -1,62 +1,100 @@
-
-import yfinance as yf
-import csv
-import time
+import os
 import requests
+import time
+import datetime
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame
+from alpaca.data.live import StockDataStream
 
-# === PUSHOVER CONFIG ===
-PUSHOVER_USER_KEY = "68e470305bd4416d41d49a147c06e392290f5561b2b05251264ae41ebabaee6c"
-PUSHOVER_APP_TOKEN = "aapx9m3p1rxq7i38c5xwjqfukkyzi6"
+# === Alpaca API keys ===
+ALPACA_API_KEY = 'your_alpaca_api_key'
+ALPACA_SECRET_KEY = 'your_alpaca_secret_key'
+PUSHOVER_USER_KEY = 'your_pushover_user_key'
+PUSHOVER_APP_TOKEN = 'your_pushover_app_token'
 
-# === NASDAQ SAMPLE TICKERS ===
-tickers = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META",
-    "TSLA", "PEP", "ADBE", "NFLX", "AMD", "CSCO",
-    "AVGO", "COST", "TMUS"
+# === Initialize Alpaca clients ===
+client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
+
+# === List of all NASDAQ tickers ===
+nasdaq_tickers = [
+    "AAPL", "MSFT", "GOOG", "AMZN", "NVDA", "TSLA", "META", "ADBE", "INTC", "CSCO",
+    # Paste your full list of 3300+ tickers here or load from file
 ]
 
-def send_pushover_alert(ticker, current, avg, spike):
-    message = f"🚨 {ticker} volume spike!\nCurrent: {current:,}\nAvg: {avg:,}\nSpike: {spike}x"
+# === Float values (must be sourced externally and manually updated if using Alpaca only) ===
+# Example mock values for testing
+ticker_float = {
+    "AAPL": 16000000000,
+    "MSFT": 7500000000,
+    "GOOG": 600000000,
+    # Add all floats here
+}
+
+# === Pushover Alert Function ===
+def send_pushover_notification(title, message):
+    url = "https://api.pushover.net/1/messages.json"
     data = {
         "token": PUSHOVER_APP_TOKEN,
         "user": PUSHOVER_USER_KEY,
-        "message": message,
-        "title": f"Volume Spike Alert: {ticker}"
+        "title": title,
+        "message": message
     }
+    requests.post(url, data=data)
+
+# === Breakout Screener Logic ===
+def check_breakout_conditions(ticker):
     try:
-        requests.post("https://api.pushover.net/1/messages.json", data=data)
+        # Pull last 2 days of 1-minute bars
+        request_params = StockBarsRequest(
+            symbol_or_symbols=ticker,
+            timeframe=TimeFrame.Minute,
+            start=datetime.datetime.now() - datetime.timedelta(days=2),
+            end=datetime.datetime.now()
+        )
+        bars = client.get_stock_bars(request_params).df
+
+        if bars.empty:
+            return
+
+        df = bars[bars.index.get_level_values(0) == ticker]
+
+        # Volume spike (last bar's volume > 2x average of last 20 bars)
+        avg_volume = df['volume'].tail(20).mean()
+        current_volume = df['volume'].iloc[-1]
+        volume_spike = current_volume > 2 * avg_volume
+
+        # MACD crossover (simplified 12-26 EMA crossover)
+        ema12 = df['close'].ewm(span=12).mean()
+        ema26 = df['close'].ewm(span=26).mean()
+        macd_now = ema12.iloc[-1] - ema26.iloc[-1]
+        macd_prev = ema12.iloc[-2] - ema26.iloc[-2]
+        macd_crossover = macd_prev < 0 and macd_now > 0
+
+        # VWAP reclaim (price crosses above VWAP)
+        vwap = (df['close'] * df['volume']).cumsum() / df['volume'].cumsum()
+        vwap_reclaim = df['close'].iloc[-2] < vwap.iloc[-2] and df['close'].iloc[-1] > vwap.iloc[-1]
+
+        # Float churn (volume > float)
+        day_volume = df['volume'].sum()
+        float_churn = ticker_float.get(ticker, float('inf')) > 0 and day_volume >= 2 * ticker_float[ticker]
+
+        if volume_spike and macd_crossover and vwap_reclaim and float_churn:
+            message = f"{ticker} breakout:\nVol Spike, MACD Cross, VWAP Reclaim, Float Churn"
+            send_pushover_notification("Breakout Alert", message)
+
     except Exception as e:
-        print(f"Failed to send alert for {ticker}: {e}")
+        print(f"Error processing {ticker}: {e}")
 
-def fetch_volume_spike(ticker):
-    try:
-        stock = yf.Ticker(ticker)
-        info = stock.info
-        current_volume = info.get('volume')
-        avg_volume = info.get('averageVolume')
-        if current_volume is None or avg_volume is None:
-            return None, None, None
-        spike = round(current_volume / avg_volume, 2) if avg_volume > 0 else None
-        return current_volume, avg_volume, spike
-    except Exception:
-        return None, None, None
+# === Main Loop ===
+def main():
+    send_pushover_notification("System Online", "Breakout Screener is running.")
+    while True:
+        for ticker in nasdaq_tickers:
+            check_breakout_conditions(ticker)
+            time.sleep(0.2)  # Rate limit control
+        print("Batch complete. Sleeping 5 min.")
+        time.sleep(300)
 
-with open("volume_spike_report.csv", "w", newline="") as csvfile:
-    writer = csv.writer(csvfile)
-    writer.writerow(["Ticker", "Current Volume", "Avg Volume", "Volume Spike (x)"])
-
-    for ticker in tickers:
-        current, avg, spike = fetch_volume_spike(ticker)
-        if current is None:
-            print(f"{ticker}: Data unavailable.")
-            continue
-
-        print(f"{ticker}: Current={current}, Avg={avg}, Spike={spike}")
-        writer.writerow([ticker, current, avg, spike])
-
-        if spike is not None and spike >= 2.0:
-            send_pushover_alert(ticker, current, avg, spike)
-
-        time.sleep(1)
-
-print("Done. CSV saved. Alerts sent for 2x+ spikes.")
+if __name__ == "__main__":
+    main()
