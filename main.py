@@ -3345,11 +3345,13 @@ def scan_unusual_volume(tickers):
                         "{} ({})\nPrice: ${:.2f}\nVolume: {:,} > Avg: {:,}".format(
                             ticker, name, latest_price, int(latest_volume), int(avg_volume)))
         except Exception as e:
-            print("⚠️ Error with {}: {}".format(ticker, e))
+            print(f"⚠️ Error with {ticker}: {e}")
 
 if __name__ == "__main__":
-    send_pushover("✅ Scanner Online", "Unusual volume scanner is now running.")
+    send_pushover("✅ Scanner Online", "Running in batches of 50 tickers per minute.")
     while True:
-        scan_unusual_volume(TICKERS)
-        send_pushover("🫀 Scanner Heartbeat", "✅ Cycle completed across {} tickers.".format(len(TICKERS)))
-        time.sleep(600)  # 10 minutes
+        for i in range(0, len(TICKERS), 50):
+            batch = TICKERS[i:i+50]
+            scan_unusual_volume(batch)
+            send_pushover("⏱️ Batch Complete", f"Processed tickers {i+1}–{i+len(batch)}")
+            time.sleep(60)
