@@ -87,11 +87,13 @@ def check_breakout_conditions(ticker):
         print(f"Error with {ticker}: {e}")
 
 def main():
+    print("Starting main loop...")
     send_pushover_notification("System Online", "Breakout screener is live and scanning.")
     last_ping = time.time()
 
     while True:
         for ticker in nasdaq_tickers:
+            print(f"Checking {ticker}")
             check_breakout_conditions(ticker)
             time.sleep(1.0)
 
@@ -101,6 +103,7 @@ def main():
             last_ping = now
 
         print("Batch complete. Sleeping 5 minutes.")
+        print("---")
         time.sleep(300)
 
 if __name__ == "__main__":
