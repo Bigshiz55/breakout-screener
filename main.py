@@ -136,3 +136,26 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# === Main Loop with Hourly Alive Pings ===
+def main():
+    send_pushover_notification("System Online", "Breakout screener is live and scanning.")
+    last_ping = time.time()
+
+    while True:
+        for ticker in nasdaq_tickers:
+            check_breakout_conditions(ticker)
+            time.sleep(1.0)
+
+        # Every hour, send "still alive" notification
+        now = time.time()
+        if now - last_ping >= 3600:
+            send_pushover_notification("Still Running", "✅ Breakout screener is active. No breakouts in the past hour.")
+            last_ping = now
+
+        print("Batch complete. Sleeping 5 minutes.")
+        time.sleep(300)
+
+if __name__ == "__main__":
+    main()
