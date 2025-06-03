@@ -40,6 +40,7 @@ def get_latest_volume(ticker):
         return None, 0
 
 def main():
+    print("✅ Starting screener...")
     print("✅ Screener online and scanning...")
     send_pushover_notification("Screener Active", "Live scanning all IEX stocks.")
 
@@ -48,6 +49,7 @@ def main():
 
     while True:
         for ticker in tickers:
+            print(f"Checking {ticker}")
             price, vol = get_latest_volume(ticker)
             if vol > 1000000:  # Example alert threshold
                 send_pushover_notification(
