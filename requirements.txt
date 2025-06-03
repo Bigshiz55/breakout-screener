@@ -1,4 +1,5 @@
-yfinance
+alpaca-py==0.13.1
+requests
 pandas
 ta
-requests
+yfinance
