@@ -14,54 +14,52 @@ PUSHOVER_APP_TOKEN = 'az7z9kd4zszqjq3i79uybap8jfjwfg'
 
 client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
 
-# === NASDAQ Ticker List ===
+# === Ticker List (safe for Alpaca Basic plan) ===
 nasdaq_tickers = [
-    "AAPL",
-    "MSFT",
-    "GOOG",
-    "AMZN",
-    "NVDA",
-    "TSLA",
-    "META",
-    "ADBE",
-    "INTC",
-    "CSCO",
     "TRAW",
     "TOVX",
     "BURU",
     "BNRG",
     "FAAS",
     "ROKU",
-    "NFLX",
-    "ZM",
-    "CRWD",
-    "DDOG",
     "DOCU",
     "SNOW",
     "PLTR",
-    "ABNB",
     "UBER",
     "LYFT",
     "CVNA",
-    "BIDU",
-    "JD",
     "PDD",
-    "MRNA",
-    "VRTX",
-    "REGN",
-    "BIIB",
     "ILMN",
     "EXPE",
-    "BKNG",
     "SIRI",
     "CHTR",
-    "MAR",
-    "WBD",
     "EA",
+    "WBD",
+    "MAR",
     "ATVI",
+    "BILI",
+    "SABR",
+    "ZUO",
+    "ENVX",
+    "DNMR",
+    "BAND",
+    "CRNC",
+    "TALK",
+    "MGNI",
+    "PLUG",
+    "FSLR",
+    "UPST",
+    "TSP",
+    "VLD",
+    "DNA",
+    "IONQ",
+    "CRCT",
+    "AVCT",
+    "INDI",
+    "RGTI",
 ]
 
-# === Known Float Values ===
+# === Float values ===
 ticker_float = {
     "TRAW": 4520000,
     "TOVX": 8100000,
@@ -70,7 +68,7 @@ ticker_float = {
     "FAAS": 3800000
 }
 
-# === Pushover Notification ===
+# === Send Notification ===
 def send_pushover_notification(title, message):
     url = "https://api.pushover.net/1/messages.json"
     data = {
@@ -81,7 +79,7 @@ def send_pushover_notification(title, message):
     }
     requests.post(url, data=data)
 
-# === Breakout Screener ===
+# === Screener Logic ===
 def check_breakout_conditions(ticker):
     try:
         request_params = StockBarsRequest(
@@ -124,7 +122,7 @@ def check_breakout_conditions(ticker):
             send_pushover_notification("Breakout Alert", message)
 
     except Exception as e:
-        print(f"Error with {ticker}: {e}")
+        print(f"Error with {{ticker}}: {{e}}")
 
 # === Main Loop ===
 def main():
@@ -132,7 +130,7 @@ def main():
     while True:
         for ticker in nasdaq_tickers:
             check_breakout_conditions(ticker)
-            time.sleep(0.3)
+            time.sleep(1.0)  # Slow down to avoid API limits
         print("Batch complete. Sleeping 5 minutes.")
         time.sleep(300)
 
